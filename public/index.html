@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Citas Oigo Salud</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #1a365d; margin-bottom: 20px; }
+
+    .filters { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; margin-bottom: 20px; }
+    .filter-group { display: flex; flex-direction: column; gap: 5px; }
+    .filter-group label { font-size: 12px; color: #666; font-weight: 500; }
+    .filter-group input, .filter-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .btn { padding: 8px 16px; background: #3182ce; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #2c5282; }
+    .btn-secondary { background: #718096; }
+    .btn-secondary:hover { background: #4a5568; }
+
+    .vista-botones { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .vista-btn { padding: 10px 20px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .vista-btn.active { background: #3182ce; color: white; border-color: #3182ce; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+    .stat-card .valor { font-size: 28px; font-weight: bold; color: #3182ce; }
+    .stat-card .etiqueta { font-size: 12px; color: #666; margin-top: 5px; }
+
+    table { width: 100%; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f7fafc; font-weight: 600; color: #4a5568; font-size: 12px; text-transform: uppercase; }
+    tr:hover { background: #f7fafc; }
+    .estado { padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-block; }
+    .estado.confirmada, .estado.agendado { background: #c6f6d5; color: #22543d; }
+    .estado.pendiente { background: #feebc8; color: #744210; }
+    .estado.cancelada { background: #fed7d7; color: #742a2a; }
+
+    .calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .cal-dia { padding: 10px; min-height: 80px; border: 1px solid #eee; }
+    .cal-dia.header { background: #f7fafc; font-weight: 600; text-align: center; min-height: auto; }
+    .cal-dia.hoy { background: #ebf8ff; }
+    .cal-dia .dia-num { font-weight: bold; color: #4a5568; }
+    .cal-dia .citas-cont { font-size: 11px; color: #718096; margin-top: 4px; }
+    .cal-dia .cita-item { font-size: 10px; padding: 2px 4px; background: #e2e8f0; margin: 2px 0; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+    .cal-dia .cita-item:hover { background: #bee3f8; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 28px; max-width: 440px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+    .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 22px; cursor: pointer; color: #718096; line-height: 1; }
+    .modal-close:hover { color: #1a202c; }
+    .modal h2 { font-size: 16px; color: #1a365d; margin-bottom: 18px; padding-right: 24px; }
+    .modal-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 14px; }
+    .modal-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .modal-label { color: #718096; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+    .modal-value { color: #2d3748; font-weight: 500; }
+
+    .vistas-container { display: none; }
+    .vistas-container.active { display: block; }
+
+    .loading { text-align: center; padding: 40px; color: #718096; }
+    .error { background: #fed7d7; color: #742a2a; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+
+    .nav-fechas { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+    .nav-fechas button { padding: 8px 12px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+    .nav-fechas span { font-weight: 600; min-width: 200px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📅 Dashboard de Citas</h1>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label>Desde</label>
+        <input type="date" id="fechaInicio">
+      </div>
+      <div class="filter-group">
+        <label>Hasta</label>
+        <input type="date" id="fechaFin">
+      </div>
+      <button class="btn" onclick="aplicarFiltros()">Buscar Rango</button>
+      <button class="btn btn-secondary" onclick="limpiarFiltros()">Hoy</button>
+    </div>
+
+    <div class="vista-botones">
+      <button class="vista-btn active" onclick="cambiarVista('dia', this)">Día</button>
+      <button class="vista-btn" onclick="cambiarVista('semana', this)">Semana</button>
+      <button class="vista-btn" onclick="cambiarVista('mes', this)">Mes</button>
+      <button class="vista-btn" onclick="cambiarVista('tabla', this)">Tabla</button>
+    </div>
+
+    <div class="nav-fechas" id="nav-fechas" style="display: none;">
+      <button onclick="navegarFecha(-1)">◀</button>
+      <span id="nav-fecha-label"></span>
+      <button onclick="navegarFecha(1)">▶</button>
+    </div>
+
+    <div id="stats" class="stats"></div>
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="vista-tabla" class="vistas-container active">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Paciente</th>
+            <th>Sede</th>
+            <th>Servicio</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-citas"></tbody>
+      </table>
+    </div>
+
+    <div id="vista-dia" class="vistas-container"></div>
+    <div id="vista-semana" class="vistas-container"></div>
+    <div id="vista-mes" class="vistas-container"></div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay" onclick="cerrarModal(event)">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="cerrarModal()">&#x2715;</button>
+      <h2 id="modal-titulo">Detalle de Cita</h2>
+      <div id="modal-contenido"></div>
+    </div>
+  </div>
+
+  <script>
+    let citas = [];
+    let vistaActual = 'tabla';
+    let fechaReferencia = new Date();
+
+    function init() {
+      const seisAtras = new Date();
+      seisAtras.setMonth(seisAtras.getMonth() - 6);
+      const unAnioAdelante = new Date();
+      unAnioAdelante.setFullYear(unAnioAdelante.getFullYear() + 1);
+
+      document.getElementById('fechaInicio').value = seisAtras.toISOString().split('T')[0];
+      document.getElementById('fechaFin').value = unAnioAdelante.toISOString().split('T')[0];
+      cargarCitas();
+    }
+
+    async function cargarCitas() {
+      const fechaInicio = document.getElementById('fechaInicio').value;
+      const fechaFin = document.getElementById('fechaFin').value;
+      const url = new URL('/api/citas', window.location.origin);
+
+      url.searchParams.set('fechaInicio', fechaInicio);
+      url.searchParams.set('fechaFin', fechaFin || fechaInicio);
+      url.searchParams.set('vista', 'rango');
+
+      console.log('Cargando:', url.toString());
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Error al cargar citas');
+        citas = await res.json();
+        console.log('Citas recibidas:', citas.length);
+        actualizarVistas();
+        document.getElementById('error').style.display = 'none';
+      } catch (e) {
+        document.getElementById('error').textContent = e.message + ' - Verifica la conexión a la base de datos';
+        document.getElementById('error').style.display = 'block';
+        console.error(e);
+      }
+    }
+
+    function actualizarVistas() {
+      mostrarStats();
+      mostrarTabla();
+      if (vistaActual === 'mes') mostrarMes();
+      else if (vistaActual === 'semana') mostrarSemana();
+      else if (vistaActual === 'dia') mostrarDia();
+    }
+
+    function normalizarEstado(estado) {
+      return (estado || '').toLowerCase();
+    }
+
+    function mostrarStats() {
+      const total = citas.length;
+      const agendadas = citas.filter(c => normalizarEstado(c.estado) === 'agendado').length;
+      const confirmadas = citas.filter(c => normalizarEstado(c.estado) === 'confirmada').length;
+      const pendientes = citas.filter(c => normalizarEstado(c.estado) === 'pendiente').length;
+      const canceladas = citas.filter(c => normalizarEstado(c.estado) === 'cancelada').length;
+
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-card"><div class="valor">${total}</div><div class="etiqueta">Total Citas</div></div>
+        <div class="stat-card"><div class="valor">${agendadas}</div><div class="etiqueta">Agendadas</div></div>
+        <div class="stat-card"><div class="valor">${confirmadas}</div><div class="etiqueta">Confirmadas</div></div>
+        <div class="stat-card"><div class="valor">${pendientes}</div><div class="etiqueta">Pendientes</div></div>
+        <div class="stat-card"><div class="valor">${canceladas}</div><div class="etiqueta">Canceladas</div></div>
+      `;
+    }
+
+    function abrirModal(id) {
+      const c = citas.find(x => x.id === id);
+      if (!c) return;
+      document.getElementById('modal-titulo').textContent = c.paciente_nombre || 'Detalle de Cita';
+      document.getElementById('modal-contenido').innerHTML = `
+        <div class="modal-row">
+          <span class="modal-icon">📅</span>
+          <div><div class="modal-label">Fecha</div><div class="modal-value">${formatFecha(c.fecha)}</div></div>
+        </div>
+        <div class="modal-row">
+          <span class="modal-icon">🕐</span>
+          <div><div class="modal-label">Hora</div><div class="modal-value">${c.hora ? c.hora.substring(0,5) : '-'}</div></div>
+        </div>
+        <div class="modal-row">
+          <span class="modal-icon">🏥</span>
+          <div><div class="modal-label">Sede</div><div class="modal-value">${c.sede || '-'}</div></div>
+        </div>
+        <div class="modal-row">
+          <span class="modal-icon">🩺</span>
+          <div><div class="modal-label">Servicio</div><div class="modal-value">${c.servicio || '-'}</div></div>
+        </div>
+        <div class="modal-row">
+          <span class="modal-icon">📞</span>
+          <div><div class="modal-label">Teléfono</div><div class="modal-value">${c.telefono || '-'}</div></div>
+        </div>
+        <div class="modal-row">
+          <span class="modal-icon">🔖</span>
+          <div><div class="modal-label">Estado</div><div class="modal-value"><span class="estado ${normalizarEstado(c.estado)}">${c.estado}</span></div></div>
+        </div>
+      `;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    function cerrarModal(e) {
+      if (e && e.target !== document.getElementById('modal-overlay')) return;
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('modal-overlay').classList.remove('open');
+    });
+
+    function citaItemHTML(c) {
+      return `<div class="cita-item" onclick="abrirModal(${c.id})">${c.hora ? c.hora.substring(0,5) : ''} ${c.paciente_nombre || ''}</div>`;
+    }
+
+    function getFechaNormalizada(fecha) {
+      if (!fecha) return '';
+      return fecha.split('T')[0];
+    }
+
+    function formatFecha(fecha) {
+      const s = getFechaNormalizada(fecha);
+      if (!s) return '-';
+      const [y, m, d] = s.split('-');
+      return `${d}-${m}-${y}`;
+    }
+
+    function mostrarTabla() {
+      const tbody = document.getElementById('tabla-citas');
+      if (citas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;">No hay citas para mostrar</td></tr>';
+        return;
+      }
+      tbody.innerHTML = citas.map(c => `
+        <tr>
+          <td>${c.id}</td>
+          <td>${formatFecha(c.fecha)}</td>
+          <td>${c.hora ? c.hora.substring(0,5) : '-'}</td>
+          <td>${c.paciente_nombre || '-'}</td>
+          <td>${c.sede || '-'}</td>
+          <td>${c.servicio || '-'}</td>
+          <td>${c.telefono || '-'}</td>
+          <td><span class="estado ${normalizarEstado(c.estado)}">${c.estado}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function formatearFecha(fecha) {
+      const d = new Date(fecha);
+      return d.toLocaleDateString('es-PE');
+    }
+
+    function getFechaStr(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    function mostrarMes() {
+      const container = document.getElementById('vista-mes');
+      const anio = fechaReferencia.getFullYear();
+      const mes = fechaReferencia.getMonth();
+      const primerDia = new Date(anio, mes, 1);
+      const ultimoDia = new Date(anio, mes + 1, 0);
+      const inicioSemana = primerDia.getDay();
+
+      document.getElementById('nav-fechas').style.display = 'flex';
+      document.getElementById('nav-fecha-label').textContent = fechaReferencia.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+
+      let html = '<div class="calendario">';
+      const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      dias.forEach(d => html += `<div class="cal-dia header">${d}</div>`);
+
+      for (let i = 0; i < inicioSemana; i++) {
+        html += '<div class="cal-dia" style="background:#f7fafc;"></div>';
+      }
+
+      for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
+        const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+        const citasDia = citas.filter(c => getFechaNormalizada(c.fecha) === fechaStr);
+        const esHoy = getFechaStr(new Date()) === fechaStr;
+
+        html += `
+          <div class="cal-dia ${esHoy ? 'hoy' : ''}">
+            <div class="dia-num">${dia}</div>
+            <div class="citas-cont">${citasDia.length} ${citasDia.length === 1 ? 'cita' : 'citas'}</div>
+            ${citasDia.slice(0,3).map(citaItemHTML).join('')}
+            ${citasDia.length > 3 ? `<div class="citas-cont">+${citasDia.length - 3} más</div>` : ''}
+          </div>
+        `;
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function mostrarSemana() {
+      const container = document.getElementById('vista-semana');
+      const inicio = new Date(fechaReferencia);
+      inicio.setDate(inicio.getDate() - inicio.getDay());
+
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      
+      document.getElementById('nav-fechas').style.display = 'flex';
+      const finSemana = new Date(inicio);
+      finSemana.setDate(finSemana.getDate() + 6);
+      document.getElementById('nav-fecha-label').textContent = `${inicio.toLocaleDateString('es-PE', {day:'numeric', month:'short'})} - ${finSemana.toLocaleDateString('es-PE', {day:'numeric', month:'short'})}`;
+
+      let html = '<div class="calendario">';
+
+      for (let i = 0; i < 7; i++) {
+        const fecha = new Date(inicio);
+        fecha.setDate(inicio.getDate() + i);
+        const fechaStr = getFechaStr(fecha);
+        const citasDia = citas.filter(c => getFechaNormalizada(c.fecha) === fechaStr);
+        const esHoy = getFechaStr(new Date()) === fechaStr;
+
+        html += `
+          <div class="cal-dia ${esHoy ? 'hoy' : ''}" style="min-height:120px;">
+            <div class="dia-num">${dias[i].substring(0,3)} ${fecha.getDate()}</div>
+            ${citasDia.map(citaItemHTML).join('')}
+          </div>
+        `;
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function mostrarDia() {
+      const container = document.getElementById('vista-dia');
+      const fechaStr = getFechaStr(fechaReferencia);
+      const citasDia = citas.filter(c => getFechaNormalizada(c.fecha) === fechaStr);
+
+      document.getElementById('nav-fechas').style.display = 'flex';
+      document.getElementById('nav-fecha-label').textContent = fechaReferencia.toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+      container.innerHTML = `
+        <h3 style="margin-bottom:15px;">Citas para ${formatearFecha(fechaStr)}</h3>
+        ${citasDia.length === 0 ? '<p style="color:#718096;">No hay citas para este día</p>' :
+          '<table><thead><tr><th>Hora</th><th>Paciente</th><th>Sede</th><th>Servicio</th><th>Teléfono</th><th>Estado</th></tr></thead><tbody>' +
+          citasDia.map(c => `<tr><td>${c.hora || '-'}</td><td>${c.paciente_nombre || '-'}</td><td>${c.sede || '-'}</td><td>${c.servicio || '-'}</td><td>${c.telefono || '-'}</td><td><span class="estado ${normalizarEstado(c.estado)}">${c.estado}</span></td></tr>`).join('') +
+          '</tbody></table>'}
+      `;
+    }
+
+    function cambiarVista(vista, btn) {
+      vistaActual = vista;
+      document.querySelectorAll('.vista-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.vistas-container').forEach(c => c.classList.remove('active'));
+      document.getElementById(`vista-${vista}`).classList.add('active');
+      
+      if (vista === 'tabla') {
+        document.getElementById('nav-fechas').style.display = 'none';
+      }
+      
+      cargarCitas();
+    }
+
+    function navegarFecha(direction) {
+      if (vistaActual === 'dia') {
+        fechaReferencia.setDate(fechaReferencia.getDate() + direction);
+      } else if (vistaActual === 'semana') {
+        fechaReferencia.setDate(fechaReferencia.getDate() + (direction * 7));
+      } else if (vistaActual === 'mes') {
+        fechaReferencia.setMonth(fechaReferencia.getMonth() + direction);
+      }
+      
+      if (vistaActual === 'semana') {
+        const inicioSemana = new Date(fechaReferencia);
+        inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+        const finSemana = new Date(inicioSemana);
+        finSemana.setDate(finSemana.getDate() + 6);
+        document.getElementById('fechaInicio').value = getFechaStr(inicioSemana);
+        document.getElementById('fechaFin').value = getFechaStr(finSemana);
+      } else {
+        const fechaStr = getFechaStr(fechaReferencia);
+        document.getElementById('fechaInicio').value = fechaStr;
+        document.getElementById('fechaFin').value = fechaStr;
+      }
+      cargarCitas();
+    }
+
+    function aplicarFiltros() {
+      cargarCitas();
+    }
+
+    function limpiarFiltros() {
+      const hoy = new Date().toISOString().split('T')[0];
+      fechaReferencia = new Date();
+      document.getElementById('fechaInicio').value = hoy;
+      document.getElementById('fechaFin').value = hoy;
+      cargarCitas();
+    }
+
+    init();
+  </script>
+</body>
+</html>

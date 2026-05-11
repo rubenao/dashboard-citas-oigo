@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PGPASSWORD='Ju4n_c4lix_6_6' psql *)",
+      "Bash(node *)"
+    ]
+  }
+}
