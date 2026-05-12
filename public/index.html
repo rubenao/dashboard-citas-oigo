@@ -143,8 +143,8 @@
       const unAnioAdelante = new Date();
       unAnioAdelante.setFullYear(unAnioAdelante.getFullYear() + 1);
 
-      document.getElementById('fechaInicio').value = seisAtras.toISOString().split('T')[0];
-      document.getElementById('fechaFin').value = unAnioAdelante.toISOString().split('T')[0];
+      document.getElementById('fechaInicio').value = getFechaStr(seisAtras);
+      document.getElementById('fechaFin').value = getFechaStr(unAnioAdelante);
       cargarCitas();
     }
 
@@ -285,7 +285,10 @@
     }
 
     function getFechaStr(date) {
-      return date.toISOString().split('T')[0];
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
 
     function mostrarMes() {
@@ -328,10 +331,11 @@
     function mostrarSemana() {
       const container = document.getElementById('vista-semana');
       const inicio = new Date(fechaReferencia);
-      inicio.setDate(inicio.getDate() - inicio.getDay());
+      // Semana empieza el lunes: (getDay()+6)%7 da 0=lun, 1=mar, ..., 6=dom
+      inicio.setDate(inicio.getDate() - (inicio.getDay() + 6) % 7);
 
-      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      
+      const dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
       document.getElementById('nav-fechas').style.display = 'flex';
       const finSemana = new Date(inicio);
       finSemana.setDate(finSemana.getDate() + 6);
@@ -348,7 +352,7 @@
 
         html += `
           <div class="cal-dia ${esHoy ? 'hoy' : ''}" style="min-height:120px;">
-            <div class="dia-num">${dias[i].substring(0,3)} ${fecha.getDate()}</div>
+            <div class="dia-num">${dias[i]} ${fecha.getDate()}</div>
             ${citasDia.map(citaItemHTML).join('')}
           </div>
         `;
@@ -399,7 +403,7 @@
       
       if (vistaActual === 'semana') {
         const inicioSemana = new Date(fechaReferencia);
-        inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+        inicioSemana.setDate(inicioSemana.getDate() - (inicioSemana.getDay() + 6) % 7);
         const finSemana = new Date(inicioSemana);
         finSemana.setDate(finSemana.getDate() + 6);
         document.getElementById('fechaInicio').value = getFechaStr(inicioSemana);
@@ -417,7 +421,7 @@
     }
 
     function limpiarFiltros() {
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = getFechaStr(new Date());
       fechaReferencia = new Date();
       document.getElementById('fechaInicio').value = hoy;
       document.getElementById('fechaFin').value = hoy;
