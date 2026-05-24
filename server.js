@@ -50,6 +50,37 @@ app.get('/api/citas', async (req, res) => {
   }
 });
 
+app.put('/api/citas/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha, hora, paciente_nombre, sede, servicio, telefono, estado } = req.body;
+
+    const result = await pool.query(
+      `UPDATE citas SET fecha=$1, hora=$2, paciente_nombre=$3, sede=$4, servicio=$5, telefono=$6, estado=$7
+       WHERE id=$8 RETURNING *`,
+      [fecha, hora, paciente_nombre, sede, servicio, telefono, estado, id]
+    );
+
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Cita no encontrada' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al actualizar cita:', error);
+    res.status(500).json({ error: 'Error al actualizar cita' });
+  }
+});
+
+app.delete('/api/citas/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM citas WHERE id=$1 RETURNING id', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Cita no encontrada' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (error) {
+    console.error('Error al eliminar cita:', error);
+    res.status(500).json({ error: 'Error al eliminar cita' });
+  }
+});
+
 app.get('/api/citas/resumen', async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
